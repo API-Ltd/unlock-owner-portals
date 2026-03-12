@@ -363,7 +363,7 @@ async function resolveTableId(nameOrId) {
     const url = `${BASE}/docs/${CONFIG.DOC_ID}/tables?limit=200` + (pageToken ? `&pageToken=${pageToken}` : "");
     const res  = await fetch(url, { headers: headers() });
     const data = await res.json();
-    const match = (data.items || []).find(t => t.name === nameOrId);
+    const match = (data.items || []).find(t => t.name.trim() === nameOrId.trim() || t.name === nameOrId);
     if (match) {
       _tableIdCache[nameOrId] = match.id;
       return match.id;
