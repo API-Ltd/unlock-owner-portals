@@ -356,15 +356,21 @@ const _tableIdCache = {};
 
 async function resolveTableId(nameOrId) {
   if (_tableIdCache[nameOrId]) return _tableIdCache[nameOrId];
-  // If it looks like an ID already (starts with grid- or tu-) use as-is
-  if (/^(grid-|tu-)/.test(nameOrId)) return nameOrId;
-  // Fetch tables list and find matching name
-  const res = await fetch(`${BASE}/docs/${CONFIG.DOC_ID}/tables?limit=200`, { headers: headers() });
-  const data = await res.json();
-  const match = (data.items || []).find(t => t.name === nameOrId);
-  if (!match) throw new Error(`Table not found in doc: "${nameOrId}"`);
-  _tableIdCache[nameOrId] = match.id;
-  return match.id;
+  if (/^(grid-|tu-|table-)/.test(nameOrId)) return nameOrId;
+  // Paginate through all tables to find matching name
+  let pageToken = null;
+  do {
+    const url = `${BASE}/docs/${CONFIG.DOC_ID}/tables?limit=200` + (pageToken ? `&pageToken=${pageToken}` : "");
+    const res  = await fetch(url, { headers: headers() });
+    const data = await res.json();
+    const match = (data.items || []).find(t => t.name === nameOrId);
+    if (match) {
+      _tableIdCache[nameOrId] = match.id;
+      return match.id;
+    }
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+  throw new Error(`Table not found in doc: "${nameOrId}"`);
 }
 
 async function fetchRows(tableId, query = "") {
