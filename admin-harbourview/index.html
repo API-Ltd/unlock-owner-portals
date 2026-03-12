@@ -203,7 +203,7 @@ const CONFIG = {
   TABLE_EVENTS:     "Events Table (local)",
   TABLE_DOCUMENTS:  "Documents Index Table (local)",
   TABLE_PROPERTIES: "Properties Master Table (client master)",
-  TABLE_REPORTS:    "View of Reports Master Table (local)",
+  TABLE_REPORTS:    "Reports API View",
 
   // Property code to match against — used to find the right row
   PROPERTY_CODE: "BC54321",
@@ -515,15 +515,6 @@ async function loadLTMP() {
     const rows = await fetchRows(CONFIG.TABLE_REPORTS);
     document.getElementById("card-ltmp").href = CONFIG.LINKS.ltmp;
 
-    // Log first row to see what columns/values are returned
-    if (rows.length > 0) {
-      const sample = rows[0].values;
-      const keys = Object.keys(sample).slice(0, 8).map(k => k + ": " + JSON.stringify(sample[k])).join(" | ");
-      document.getElementById("val-ltmp").textContent = "DEBUG: " + keys;
-      setCard("ltmp");
-      return;
-    }
-
     // Filter to LTMP reports, pick most recent by Report date
     const ltmpRows = rows
       .filter(r => String(r.values[CONFIG.COLUMNS.reportType] || "")
@@ -595,31 +586,6 @@ function runDemo() {
 if (CONFIG.API_TOKEN === "YOUR_READ_ONLY_CODA_TOKEN") {
   runDemo();
 } else {
-  // Debug: list all tables first to verify names
-  fetch(`https://coda.io/apis/v1/docs/${CONFIG.DOC_ID}/tables?limit=200`, { headers: headers() })
-    .then(r => r.json())
-    .then(data => {
-      const rows = (data.items || []).map(t => t.name + " → " + t.id);
-      const debug = document.createElement("div");
-      debug.style = "font-size:11px;color:#555;padding:10px 14px;background:#f0ede6;border-radius:8px;margin-top:10px;font-family:monospace;line-height:1.9;";
-      debug.innerHTML = "<strong>Tables (name → id):</strong><br>" + rows.join("<br>");
-      document.body.appendChild(debug);
-    });
-  // Extra debug: show exact name match attempt for LTMP table
-  fetch(`${BASE}/docs/${CONFIG.DOC_ID}/tables?limit=200`, { headers: headers() })
-    .then(r => r.json())
-    .then(data => {
-      const target = CONFIG.TABLE_REPORTS;
-      const all = (data.items || []).map(t => t.name);
-      const exact = all.filter(n => n === target);
-      const partial = all.filter(n => n.toLowerCase().includes("report"));
-      const debug2 = document.createElement("div");
-      debug2.style = "font-size:11px;color:#333;padding:10px 14px;background:#e8f4e8;border-radius:8px;margin-top:6px;font-family:monospace;line-height:1.9;";
-      debug2.innerHTML = `<strong>Looking for:</strong> "${target}" (${target.length} chars)<br>`
-        + `<strong>Exact matches:</strong> ${exact.length ? exact.join(", ") : "NONE"}<br>`
-        + `<strong>Partial matches (report):</strong> ${partial.join(" | ") || "NONE"}`;
-      document.body.appendChild(debug2);
-    });
   Promise.all([loadMeeting(), loadInsurance(), loadBWOF(), loadLTMP()]);
 }
 </script>
