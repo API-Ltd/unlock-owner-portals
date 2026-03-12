@@ -515,6 +515,15 @@ async function loadLTMP() {
     const rows = await fetchRows(CONFIG.TABLE_REPORTS);
     document.getElementById("card-ltmp").href = CONFIG.LINKS.ltmp;
 
+    // Log first row to see what columns/values are returned
+    if (rows.length > 0) {
+      const sample = rows[0].values;
+      const keys = Object.keys(sample).slice(0, 8).map(k => k + ": " + JSON.stringify(sample[k])).join(" | ");
+      document.getElementById("val-ltmp").textContent = "DEBUG: " + keys;
+      setCard("ltmp");
+      return;
+    }
+
     // Filter to LTMP reports, pick most recent by Report date
     const ltmpRows = rows
       .filter(r => String(r.values[CONFIG.COLUMNS.reportType] || "")
