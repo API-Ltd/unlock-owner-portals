@@ -357,20 +357,27 @@ const _tableIdCache = {};
 async function resolveTableId(nameOrId) {
   if (_tableIdCache[nameOrId]) return _tableIdCache[nameOrId];
   if (/^(grid-|tu-|table-)/.test(nameOrId)) return nameOrId;
-  // Paginate through all tables to find matching name
+  // Paginate through all tables
   let pageToken = null;
+  const allTables = [];
   do {
     const url = `${BASE}/docs/${CONFIG.DOC_ID}/tables?limit=200` + (pageToken ? `&pageToken=${pageToken}` : "");
     const res  = await fetch(url, { headers: headers() });
     const data = await res.json();
-    const match = (data.items || []).find(t => t.name.trim() === nameOrId.trim() || t.name === nameOrId);
-    if (match) {
-      _tableIdCache[nameOrId] = match.id;
-      return match.id;
-    }
+    allTables.push(...(data.items || []));
     pageToken = data.nextPageToken || null;
   } while (pageToken);
-  throw new Error(`Table not found in doc: "${nameOrId}"`);
+  // Try exact match first, then trimmed, then includes
+  const match = 
+    allTables.find(t => t.name === nameOrId) ||
+    allTables.find(t => t.name.trim() === nameOrId.trim()) ||
+    allTables.find(t => t.name.toLowerCase().includes(nameOrId.toLowerCase())) ||
+    allTables.find(t => nameOrId.toLowerCase().includes(t.name.toLowerCase()));
+  if (match) {
+    _tableIdCache[nameOrId] = match.id;
+    return match.id;
+  }
+  throw new Error(`Table not found: "${nameOrId}" (searched ${allTables.length} tables)`);
 }
 
 async function fetchRows(tableId, query = "") {
