@@ -589,6 +589,21 @@ if (CONFIG.API_TOKEN === "YOUR_READ_ONLY_CODA_TOKEN") {
       debug.innerHTML = "<strong>Tables (name → id):</strong><br>" + rows.join("<br>");
       document.body.appendChild(debug);
     });
+  // Extra debug: show exact name match attempt for LTMP table
+  fetch(`${BASE}/docs/${CONFIG.DOC_ID}/tables?limit=200`, { headers: headers() })
+    .then(r => r.json())
+    .then(data => {
+      const target = CONFIG.TABLE_REPORTS;
+      const all = (data.items || []).map(t => t.name);
+      const exact = all.filter(n => n === target);
+      const partial = all.filter(n => n.toLowerCase().includes("report"));
+      const debug2 = document.createElement("div");
+      debug2.style = "font-size:11px;color:#333;padding:10px 14px;background:#e8f4e8;border-radius:8px;margin-top:6px;font-family:monospace;line-height:1.9;";
+      debug2.innerHTML = `<strong>Looking for:</strong> "${target}" (${target.length} chars)<br>`
+        + `<strong>Exact matches:</strong> ${exact.length ? exact.join(", ") : "NONE"}<br>`
+        + `<strong>Partial matches (report):</strong> ${partial.join(" | ") || "NONE"}`;
+      document.body.appendChild(debug2);
+    });
   Promise.all([loadMeeting(), loadInsurance(), loadBWOF(), loadLTMP()]);
 }
 </script>
