@@ -203,7 +203,7 @@ const CONFIG = {
   TABLE_EVENTS:     "Events Table (local)",
   TABLE_DOCUMENTS:  "Documents Index Table (local)",
   TABLE_PROPERTIES: "Properties Master Table (client master)",
-  TABLE_REPORTS:    "Reports Table (local)",
+  TABLE_REPORTS:    "grid-uRI-So0pb",
 
   // Property code to match against — used to find the right row
   PROPERTY_CODE: "BC54321",
@@ -297,7 +297,15 @@ const headers = () => ({ "Authorization": `Bearer ${CONFIG.API_TOKEN}` });
 
 function fmt(dateStr) {
   if (!dateStr) return null;
-  const d = new Date(dateStr);
+  // Handle NZ/AU dd/mm/yyyy format from Coda
+  let d;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+    const [day, month, year] = dateStr.split("/");
+    d = new Date(`${year}-${month}-${day}`);
+  } else {
+    d = new Date(dateStr);
+  }
+  if (isNaN(d)) return dateStr;
   return d.toLocaleDateString("en-NZ", { day: "numeric", month: "short", year: "numeric" });
 }
 
@@ -307,10 +315,19 @@ function fmtTime(dateStr) {
   return d.toLocaleTimeString("en-NZ", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
+function parseDate(dateStr) {
+  if (!dateStr) return null;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+    const [day, month, year] = dateStr.split("/");
+    return new Date(`${year}-${month}-${day}`);
+  }
+  return new Date(dateStr);
+}
+
 function daysUntil(dateStr) {
   if (!dateStr) return null;
   const now  = new Date(); now.setHours(0,0,0,0);
-  const then = new Date(dateStr); then.setHours(0,0,0,0);
+  const then = parseDate(dateStr); then.setHours(0,0,0,0);
   return Math.round((then - now) / 86400000);
 }
 
@@ -334,12 +351,29 @@ function setError(id, msg) {
   document.getElementById(`val-${id}`).textContent = msg;
 }
 
+// Cache of table name → id resolved from the tables list
+const _tableIdCache = {};
+
+async function resolveTableId(nameOrId) {
+  if (_tableIdCache[nameOrId]) return _tableIdCache[nameOrId];
+  // If it looks like an ID already (starts with grid- or tu-) use as-is
+  if (/^(grid-|tu-)/.test(nameOrId)) return nameOrId;
+  // Fetch tables list and find matching name
+  const res = await fetch(`${BASE}/docs/${CONFIG.DOC_ID}/tables?limit=200`, { headers: headers() });
+  const data = await res.json();
+  const match = (data.items || []).find(t => t.name === nameOrId);
+  if (!match) throw new Error(`Table not found in doc: "${nameOrId}"`);
+  _tableIdCache[nameOrId] = match.id;
+  return match.id;
+}
+
 async function fetchRows(tableId, query = "") {
-  const url = `${BASE}/docs/${CONFIG.DOC_ID}/tables/${encodeURIComponent(tableId)}/rows?useColumnNames=true&limit=500${query}`;
+  const resolvedId = await resolveTableId(tableId);
+  const url = `${BASE}/docs/${CONFIG.DOC_ID}/tables/${encodeURIComponent(resolvedId)}/rows?useColumnNames=true&limit=500${query}`;
   const res  = await fetch(url, { headers: headers() });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`${res.status} — table: "${tableId}" — ${body.slice(0,120)}`);
+    throw new Error(`${res.status} — table: "${tableId}" (id: ${resolvedId}) — ${body.slice(0,120)}`);
   }
   const data = await res.json();
   return data.items || [];
