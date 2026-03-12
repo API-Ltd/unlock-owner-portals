@@ -1,0 +1,3 @@
+https://unlock-owner-portals.pages.dev/*
+  X-Frame-Options: ALLOWALL
+  Content-Security-Policy: frame-ancestors *
