@@ -337,7 +337,10 @@ function setError(id, msg) {
 async function fetchRows(tableId, query = "") {
   const url = `${BASE}/docs/${CONFIG.DOC_ID}/tables/${encodeURIComponent(tableId)}/rows?useColumnNames=true&limit=500${query}`;
   const res  = await fetch(url, { headers: headers() });
-  if (!res.ok) throw new Error(`${res.status}`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`${res.status} — table: "${tableId}" — ${body.slice(0,120)}`);
+  }
   const data = await res.json();
   return data.items || [];
 }
@@ -536,6 +539,12 @@ function runDemo() {
 if (CONFIG.API_TOKEN === "YOUR_READ_ONLY_CODA_TOKEN") {
   runDemo();
 } else {
+  // Debug: list all tables first to verify names
+  fetch(`https://coda.io/apis/v1/docs/${CONFIG.DOC_ID}/tables?limit=50`, { headers: headers() })
+    .then(r => r.json())
+    .then(data => {
+      console.log("TABLES IN DOC:", data.items.map(t => t.name));
+    });
   Promise.all([loadMeeting(), loadInsurance(), loadBWOF(), loadLTMP()]);
 }
 </script>
